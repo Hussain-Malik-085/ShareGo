@@ -6,7 +6,7 @@ import {
   requestNotificationPermission,
   scheduleNotification,
   scheduleRecurringNotifications,
-} from '../Share_Go_app/android/app/src/utils/notificationService';
+} from './android/app/src/utils/notificationService';
 
 export default function App() {
   useEffect(() => {

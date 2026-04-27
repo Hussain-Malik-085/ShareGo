@@ -18,8 +18,14 @@ Yeh project teen hisson par hai: **App-Backend** (Node + Mongo), **App-Frontend*
 Mongo start karein, default connection string:  
 `mongodb://127.0.0.1:27017/sharego`
 
-**Atlas option:**  
-Cluster banayein → Connect → “Drivers” se URI copy karein, password set karein, DB name `sharego` rakh sakte hain.
+**Atlas option (agar `ECONNREFUSED 127.0.0.1:27017` aaye — yeh recommended hai):**  
+1. [Atlas](https://www.mongodb.com/cloud/atlas) par free M0 cluster banaein.  
+2. **Database Access** → user + password.  
+3. **Network Access** → **Add IP** → `0.0.0.0/0` (sirf dev ke liye).  
+4. **Connect** → **Drivers** → URI copy karein, `<password>` apna daalein, end par DB: `...mongodb.net/sharego`  
+5. `App-Backend/.env` mein: `MONGODB_URI=mongodb+srv://...` (poora ek line)  
+
+> **Wazeh:** `127.0.0.1:27017` = **MongoDB** (database). `localhost:4000` = **Node API** (alag cheez). Error iska matlab Mongo aapke PC par **run nahi** ho rahi — dusre project **port 4000** use kare, is error se seedha ta’alluq nahi. Hal: local Mongo start karein, ya **Atlas** ka `mongodb+srv` URI `.env` mein daal dein.
 
 ---
 

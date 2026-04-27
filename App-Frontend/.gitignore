@@ -7,3 +7,9 @@ node_modules/
 .expo/
 *.log
 .DS_Store
+
+# iOS – CocoaPods (regenerate with: cd ios && pod install)
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+ios/.xcode.env.local
