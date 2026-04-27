@@ -1,0 +1,9 @@
+# Env (use .env.example; copy to .env and add keys)
+.env
+.env.local
+.env.*.local
+
+node_modules/
+.expo/
+*.log
+.DS_Store

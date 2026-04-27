@@ -1,0 +1,129 @@
+/* Container for the entire login page */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(to right, #223241, #105e62);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: fadeInBackground 1s ease forwards;
+}
+
+/* Fading background animation */
+@keyframes fadeInBackground {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Styling for the login form */
+.login-form {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.25);
+  width: 380px;
+  animation: fadeIn 0.7s ease forwards;
+}
+
+/* Hover effect */
+.login-form:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease-in-out;
+}
+
+/* Form heading */
+.login-form h2 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+/* Description text */
+.login-description {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 25px;
+}
+
+/* Form group styling */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* Labels */
+.form-group label {
+  display: block;
+  font-size: 16px;
+  color: #444;
+  margin-bottom: 8px;
+}
+
+/* Input fields */
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+  background-color: #f9f9f9;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+  border: 1px solid #4facfe;
+  box-shadow: 0 0 8px rgba(79, 172, 254, 0.4);
+}
+
+/* Login button */
+.login-button {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(to right, #4facfe, #00f2fe);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(79, 172, 254, 0.3);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-button:hover {
+  background: linear-gradient(to right, #206b6e, #0d4b82);
+  box-shadow: 0 6px 15px rgba(0, 122, 255, 0.4);
+}
+
+/* Placeholder text color */
+.form-group input::placeholder {
+  color: #999;
+}
+
+/* Fade-in animation for the form */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 400px) {
+  .login-form {
+    width: 95%;
+    padding: 30px;
+  }
+}

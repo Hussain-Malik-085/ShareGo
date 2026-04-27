@@ -1,0 +1,19 @@
+{
+  "name": "sharego-backend",
+  "version": "1.0.0",
+  "description": "ShareGo FYP – Express + MongoDB API (mobile + admin panel)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "mongoose": "^8.8.3"
+  }
+}
