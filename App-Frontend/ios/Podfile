@@ -20,7 +20,11 @@ target 'Share_Go' do
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
-    :app_path => "#{Pod::Config.instance.installation_root}/.."
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    # react-native-maps needs RNMapsAirModule in the native binary; Fabric/Bridgeless builds often hit a TurboModule registration mismatch until pods + Xcode rebuild cleanly.
+    # Old Architecture avoids RNMapsAirModule / Fabric Map path issues during development.
+    :fabric_enabled => false,
+    :new_arch_enabled => false,
   )
 
   target 'Share_GoTests' do

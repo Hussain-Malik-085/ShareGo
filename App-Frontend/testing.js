@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -11,124 +10,71 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
-import axios from 'axios';
+import {BASE_URL} from './config/config';
 
-const openCageKey = 'e670c19735ce491caae138c921e2e51e';
-const openRouteServiceKey = '5b3ce3597851110001cf6248e9cc9c298c3e43d7a9cb400fbd66d825';
+async function parseJson(res) {
+  const raw = await res.text();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {message: raw.slice(0, 120)};
+  }
+}
 
+/** Dev screen — uses backend `/fare-estimate` only (no ORS/OpenCage keys on device). */
 export default function Testing() {
   const [pickup, setPickup] = useState('');
   const [destination, setDestination] = useState('');
-  const [pickupCoords, setPickupCoords] = useState(null);
-  const [destCoords, setDestCoords] = useState(null);
-  const [distance, setDistance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [vehicleType, setVehicleType] = useState('car');
-  const [fare, setFare] = useState(null);
-
-  const FUEL_PRICE = 255;
-  const Bike_BASE_FARE = 50;
-  const Car_BASE_FARE = 100;
-  const VEHICLE_CONSUMPTION = { bike: 40, car: 13 };
-  const SHAREGO_PERCENTAGE = { bike: 0.10, car: 0.10 };
-
-  const toggleVehicleType = (type) => {
-    setVehicleType(type);
-  };
-
-  const getCoordinates = async (place) => {
-    try {
-      const response = await axios.get('https://api.opencagedata.com/geocode/v1/json', {
-        params: {
-          q: `${place}, Lahore, Pakistan`,
-          key: openCageKey,
-          countrycode: 'pk',
-          limit: 1,
-        },
-      });
-
-      if (response.data.results.length > 0) {
-        const { lat, lng } = response.data.results[0].geometry;
-        return { latitude: lat, longitude: lng };
-      } else {
-        throw new Error(`No results for ${place}`);
-      }
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const getDrivingDistanceFromORS = async (startCoords, endCoords) => {
-    const profile = vehicleType === 'bike' ? 'cycling-regular' : 'driving-car';
-    const url = `https://api.openrouteservice.org/v2/directions/${profile}`;
-
-    const response = await axios.get(url, {
-      params: {
-        api_key: openRouteServiceKey,
-        start: `${startCoords.longitude},${startCoords.latitude}`,
-        end: `${endCoords.longitude},${endCoords.latitude}`,
-      },
-    });
-
-    const meters = response.data.features[0].properties.segments[0].distance;
-    return meters / 1000;
-  };
-
-  const calculateFare = (km) => {
-    const BASE_FARE = vehicleType === 'bike' ? Bike_BASE_FARE : Car_BASE_FARE;
-    const fuelNeeded = km / VEHICLE_CONSUMPTION[vehicleType];
-    const fuelCost = fuelNeeded * FUEL_PRICE;
-    const subtotal = BASE_FARE + fuelCost;
-    const sharegoEarning = subtotal * SHAREGO_PERCENTAGE[vehicleType];
-    return Math.round(subtotal + sharegoEarning).toFixed(2);
-  };
+  const [estimate, setEstimate] = useState(null);
 
   const handleCalculate = async () => {
-    if (!pickup || !destination) {
-      Alert.alert('Please enter both Pickup and Destination');
+    if (!pickup.trim() || !destination.trim()) {
+      Alert.alert('Missing fields', 'Enter pickup and destination.');
       return;
     }
 
     try {
       setLoading(true);
-      const pickupLocation = await getCoordinates(pickup);
-      const destLocation = await getCoordinates(destination);
-
-      setPickupCoords(pickupLocation);
-      setDestCoords(destLocation);
-
-      const realDistance = await getDrivingDistanceFromORS(pickupLocation, destLocation);
-      setDistance(realDistance.toFixed(2));
-
-      const totalFare = calculateFare(realDistance);
-      setFare(totalFare);
+      setEstimate(null);
+      const res = await fetch(`${BASE_URL}/fare-estimate`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          pickup: pickup.trim(),
+          destination: destination.trim(),
+          vehicleType,
+        }),
+      });
+      const data = await parseJson(res);
+      if (!res.ok) {
+        Alert.alert('Error', data.message || `HTTP ${res.status}`);
+        return;
+      }
+      setEstimate(data);
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Network error');
+    } finally {
       setLoading(false);
-    } catch (error) {
-      setLoading(false);
-      Alert.alert('Error', 'Error calculating distance. Please try again.');
     }
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+    <KeyboardAvoidingView style={{flex: 1}} behavior="padding">
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>ShareGo - Distance & Fare</Text>
+        <Text style={styles.title}>ShareGo — Fare test</Text>
+        <Text style={styles.note}>Uses your API: POST /fare-estimate</Text>
 
         <View style={styles.card}>
           <View style={styles.toggleContainer}>
-            {['car', 'bike'].map((type) => (
+            {['car', 'bike'].map(type => (
               <TouchableOpacity
                 key={type}
-                style={[
-                  styles.toggleButton,
-                  vehicleType === type && styles.selectedButton,
-                ]}
-                onPress={() => toggleVehicleType(type)}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  vehicleType === type && styles.selectedText,
-                ]}>
+                style={[styles.toggleButton, vehicleType === type && styles.selectedButton]}
+                onPress={() => setVehicleType(type)}>
+                <Text style={[styles.toggleText, vehicleType === type && styles.selectedText]}>
                   {type.toUpperCase()}
                 </Text>
               </TouchableOpacity>
@@ -136,47 +82,39 @@ export default function Testing() {
           </View>
 
           <Text style={styles.vehicleLabel}>
-            Selected: <Text style={{ fontWeight: 'bold' }}>{vehicleType.toUpperCase()}</Text>
+            Selected: <Text style={{fontWeight: 'bold'}}>{vehicleType.toUpperCase()}</Text>
           </Text>
 
           <TextInput
             style={styles.input}
-            placeholder="Enter Pickup Location"
+            placeholder="Pickup"
             value={pickup}
             onChangeText={setPickup}
           />
           <TextInput
             style={styles.input}
-            placeholder="Enter Destination Location"
+            placeholder="Destination"
             value={destination}
             onChangeText={setDestination}
           />
 
           <TouchableOpacity style={styles.calcButton} onPress={handleCalculate}>
-            <Text style={styles.calcButtonText}>Calculate Distance</Text>
+            <Text style={styles.calcButtonText}>Calculate (via backend)</Text>
           </TouchableOpacity>
 
-          {loading && <ActivityIndicator size="large" color="#1e90ff" style={{ marginTop: 20 }} />}
+          {loading ? (
+            <ActivityIndicator size="large" color="#1e90ff" style={{marginTop: 20}} />
+          ) : null}
 
-          {pickupCoords && (
-            <Text style={styles.coordText}>
-              🚩 Pickup: {pickupCoords.latitude}, {pickupCoords.longitude}
-            </Text>
-          )}
-
-          {destCoords && (
-            <Text style={styles.coordText}>
-              🎯 Destination: {destCoords.latitude}, {destCoords.longitude}
-            </Text>
-          )}
-
-          {distance && (
-            <Text style={styles.result}>Distance: {distance} km</Text>
-          )}
-
-          {fare && (
-            <Text style={styles.result}>Estimated Fare: Rs. {fare}</Text>
-          )}
+          {estimate ? (
+            <View style={{marginTop: 16}}>
+              <Text style={styles.result}>Distance: {estimate.distanceKm} km</Text>
+              <Text style={styles.result}>Fare: Rs. {estimate.totalFare}</Text>
+              <Text style={styles.coordText}>
+                Method: {estimate.distanceMethod || '—'}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -191,12 +129,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'flex-start',
   },
+  note: {
+    textAlign: 'center',
+    color: '#64748b',
+    marginBottom: 12,
+    fontSize: 13,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1e90ff',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   card: {
     backgroundColor: '#fff',
@@ -228,14 +172,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   result: {
-    marginTop: 20,
+    marginTop: 10,
     fontSize: 18,
     fontWeight: 'bold',
     color: 'green',
     textAlign: 'center',
   },
   coordText: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14,
     textAlign: 'center',
     color: '#444',

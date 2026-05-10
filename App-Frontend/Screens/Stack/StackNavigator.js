@@ -1,11 +1,12 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {createStackNavigator} from '@react-navigation/stack';
 import PrivacyPolicyScreen from '../Riders-Folder/Navigation Screens/PrivacyPolicyScreen';
 
 import DriverPrivacyPolicy from '../Drivers-Folder/Driver Navigation Screen/DriverPrivacyPolicyScreen';
 import DriverMainHomeScreen from '../Drivers-Folder/DriverMainHomeScreen';
-import HomeScreen from '../Riders-Folder/Navigation Screens/HomeScreen';
+import HomeScreen from '../Riders-Folder/Navigation Screens/HomeScreenLoader';
 
 // for the role selection screen
 import RoleSelectionScreen from '../Role-Selection/RoleSelectionScreen';
@@ -40,6 +41,7 @@ const Stack = createStackNavigator();
 
 export default function StackNavigator({initialRoute = 'RoleSelection'}) {
   return (
+    <SafeAreaProvider>
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName={initialRoute}
@@ -71,5 +73,6 @@ export default function StackNavigator({initialRoute = 'RoleSelection'}) {
 
       </Stack.Navigator>
     </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

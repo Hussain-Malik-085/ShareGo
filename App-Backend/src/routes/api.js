@@ -4,12 +4,23 @@ const Driver = require('../models/Driver');
 const Rider = require('../models/Rider');
 const DriverPost = require('../models/DriverPost');
 const RiderPost = require('../models/RiderPost');
+const {
+  estimateFareFromAddresses,
+  parseFuelPricePerLiter,
+} = require('../utils/fareEstimate');
 
 const router = express.Router();
 
 const fuelHandler = (req, res) => {
-  const petrol = process.env.PETROL_PRICE_DISPLAY || 'Rs. 280/Ltr';
-  res.json({prices: {petrol: petrol}});
+  const pkr = parseFuelPricePerLiter();
+  const petrol =
+    process.env.PETROL_PRICE_DISPLAY && String(process.env.PETROL_PRICE_DISPLAY).trim() !== ''
+      ? process.env.PETROL_PRICE_DISPLAY
+      : `Rs. ${pkr}/Ltr`;
+  res.json({
+    prices: {petrol},
+    petrolPricePerLiter: pkr,
+  });
 };
 
 router.get('/Fuel-price', fuelHandler);
@@ -55,10 +66,52 @@ router.delete('/drivers/:id', async (req, res) => {
   }
 });
 
-/** Riders */
+/** Riders — lookup must be registered before /riders/:id */
+router.get('/riders/lookup', async (req, res) => {
+  try {
+    const email = String(req.query.email || '')
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      return res.status(400).json({message: 'Missing email query param'});
+    }
+    const doc = await Rider.findOne({email}).lean();
+    if (!doc) {
+      return res.status(404).json({message: 'No rider profile for this email'});
+    }
+    res.json({
+      rider: {
+        ...doc,
+        _id: doc._id.toString(),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({message: e.message});
+  }
+});
+
 router.post('/riders', async (req, res) => {
   try {
-    const doc = new Rider(req.body);
+    const body = {...req.body};
+    if (!body.email) {
+      return res.status(400).json({message: 'Email is required'});
+    }
+    body.email = String(body.email).trim().toLowerCase();
+
+    let doc = await Rider.findOne({email: body.email});
+    if (doc) {
+      doc.firstName = body.firstName ?? doc.firstName;
+      doc.lastName = body.lastName ?? doc.lastName;
+      doc.phoneNumber = body.phoneNumber ?? doc.phoneNumber;
+      if (body.dob != null) doc.dob = body.dob;
+      await doc.save();
+      return res.status(200).json({
+        _id: doc._id.toString(),
+        message: 'Rider profile updated',
+      });
+    }
+
+    doc = new Rider(body);
     await doc.save();
     res.status(201).json({
       _id: doc._id.toString(),
@@ -143,10 +196,37 @@ router.get('/driverpost/:driverId', async (req, res) => {
   }
 });
 
+/** Fare + distance (server-side; avoids mobile API keys / ORS 401) */
+router.post('/fare-estimate', async (req, res) => {
+  try {
+    const {pickup, destination, vehicleType} = req.body || {};
+    if (!pickup || !destination) {
+      return res
+        .status(400)
+        .json({message: 'pickup and destination are required'});
+    }
+    const result = await estimateFareFromAddresses({
+      pickup,
+      destination,
+      vehicleType: vehicleType || 'car',
+    });
+    res.json(result);
+  } catch (e) {
+    console.error('[fare-estimate]', e.message);
+    res.status(400).json({message: e.message || 'Fare estimate failed'});
+  }
+});
+
 /** Rider posts */
 router.post('/riderpost', async (req, res) => {
   try {
-    const doc = new RiderPost(req.body);
+    const body = {...req.body};
+    if (!body.riderId || !mongoose.isValidObjectId(String(body.riderId))) {
+      return res.status(400).json({
+        message: 'Valid riderId (Mongo ObjectId) is required. Complete rider profile first.',
+      });
+    }
+    const doc = new RiderPost(body);
     await doc.save();
     res.status(201).json({message: 'Rider post created', ride: doc});
   } catch (e) {

@@ -100,22 +100,33 @@ const DriverHomeScreen = () => {
             return;
           }
 
-          const apiKey = "5b3ce3597851110001cf6248648afa3da02b4f99982cd4f009d549ce";
-          const url = \`https://api.openrouteservice.org/v2/directions/driving-car?api_key=\${apiKey}&start=\${pickupCoords[1]},\${pickupCoords[0]}&end=\${dropoffCoords[1]},\${dropoffCoords[0]}\`;
+          // Public OSRM demo router — no API key (avoids OpenRouteService 401 from embedded WebView).
+          const url = "https://router.project-osrm.org/route/v1/driving/" +
+            pickupCoords[1] + "," + pickupCoords[0] + ";" +
+            dropoffCoords[1] + "," + dropoffCoords[0] +
+            "?overview=full&geometries=geojson";
 
           fetch(url)
             .then(res => res.json())
             .then(data => {
-              const coords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+              const geom = data.routes && data.routes[0] && data.routes[0].geometry;
+              const raw = geom && geom.coordinates ? geom.coordinates : [];
+              const coords = raw.map(function(c) { return [c[1], c[0]]; });
+              if (!coords.length) {
+                alert("No route returned.");
+                var bounds = L.latLngBounds([pickupCoords, dropoffCoords]);
+                map.fitBounds(bounds.pad(0.3));
+                return;
+              }
               if (routeLine) map.removeLayer(routeLine);
-              routeLine = L.polyline(coords, {color: 'red', weight: 4}).addTo(map);
-              map.fitBounds(routeLine.getBounds().pad(0.3));
-              window.ReactNativeWebView.postMessage("🚗 Route drawn");
+              routeLine = L.polyline(coords, {color: '#059669', weight: 5}).addTo(map);
+              map.fitBounds(routeLine.getBounds().pad(0.2));
+              window.ReactNativeWebView.postMessage("Route drawn");
             })
-            .catch(err => {
-              console.error("Error fetching route:", err);
-              alert("Failed to draw route.");
-              const bounds = L.latLngBounds([pickupCoords, dropoffCoords]);
+            .catch(function(err) {
+              console.error("Route fetch error:", err);
+              alert("Could not load route. Try again.");
+              var bounds = L.latLngBounds([pickupCoords, dropoffCoords]);
               map.fitBounds(bounds.pad(0.3));
             });
         }

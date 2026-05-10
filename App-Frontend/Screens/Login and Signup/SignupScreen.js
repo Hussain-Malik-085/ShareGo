@@ -10,9 +10,27 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Platform,
+  StatusBar,
+  Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { supabase } from '../../config/supabaseClient';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const LOGO_MAX = Math.min(152, SCREEN_W * 0.4);
+
+const COLORS = {
+  gradient: ['#ecfdf5', '#d1fae5', '#a7f3d0'],
+  primary: '#059669',
+  primaryPressed: '#047857',
+  text: '#0f172a',
+  textMuted: '#64748b',
+  inputBg: '#f8fafc',
+  inputBorder: '#e2e8f0',
+  cardBg: '#ffffff',
+  error: '#dc2626',
+  success: '#047857',
+};
 
 export default function SignupScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -24,12 +42,11 @@ export default function SignupScreen({ navigation }) {
   const handleSignup = async () => {
     setErrors({});
     setSuccessMessage('');
-    
+
     let newErrors = {};
     if (!email) newErrors.email = 'Email is required';
     if (!password) newErrors.password = 'Password is required';
-    else if (password.length < 8)
-      newErrors.password = 'Password must be at least 8 characters long';
+    else if (password.length < 8) newErrors.password = 'Password must be at least 8 characters long';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -39,90 +56,118 @@ export default function SignupScreen({ navigation }) {
     setLoading(true);
 
     try {
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', email)
-        .single();
+      const { error: authError } = await supabase.auth.signUp({ email, password });
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        setErrors({ general: 'Error checking email. Try again later.' });
+      if (authError) {
+        const msg = authError.message || '';
+        if (/already registered|already been registered|User already exists/i.test(msg)) {
+          setErrors({ email: 'This email is already registered.' });
+        } else {
+          setErrors({ general: msg });
+        }
         setLoading(false);
         return;
       }
 
-      if (existingProfile) {
-        setErrors({ email: 'This email is already registered.' });
-        setLoading(false);
-        return;
-      }
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{ email: email, created_at: new Date() }]);
+      const { error: profileError } = await supabase.from('profiles').upsert(
+        { email: email.trim(), created_at: new Date().toISOString() },
+        { onConflict: 'email' },
+      );
 
       if (profileError) {
-        setErrors({ general: 'Error saving profile data. Please try again.' });
+        const msg = profileError.message || '';
+        const hint =
+          profileError.code === '42P01' ||
+          profileError.code === 'PGRST205' ||
+          /relation|does not exist|schema cache|permission denied|RLS/i.test(msg)
+            ? ' Open Supabase → SQL Editor and run: docs/SUPABASE-profiles.sql (from your FYP folder).'
+            : '';
+        setErrors({
+          general: (msg || 'Could not save profile.') + hint,
+        });
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setErrors({ general: error.message });
-      } else {
-        setSuccessMessage('Check your email for verification.');
-      }
+      setSuccessMessage('Check your email for verification.');
     } catch (err) {
-      setErrors({ general: err.message });
+      const msg = err?.message || String(err);
+      if (msg.includes('Network request failed')) {
+        setErrors({
+          general:
+            'Network error: check internet, SUPABASE_URL / key in .env, then rebuild (npx react-native start --reset-cache).',
+        });
+      } else {
+        setErrors({ general: msg });
+      }
     }
 
     setLoading(false);
   };
 
   return (
-    <LinearGradient colors={['#f5f5f5', '#969696']} style={styles.gradient}>
+    <LinearGradient colors={COLORS.gradient} style={styles.gradient}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-          <View style={styles.logoContainer}>
-            <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
+          <View style={styles.hero}>
+            <View style={styles.logoRing}>
+              <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+            </View>
+            <Text style={styles.tagline}>Share the ride, save the cost</Text>
           </View>
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Create Account</Text>
 
-            {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+          <View style={styles.card}>
+            <Text style={styles.title}>Create account</Text>
+            <Text style={styles.subtitle}>Join Share Go in a few seconds</Text>
 
+            {successMessage ? <Text style={styles.bannerSuccess}>{successMessage}</Text> : null}
+
+            <Text style={styles.label}>Email</Text>
             <TextInput
-              placeholder="Email"
-              placeholderTextColor="#666"
-              style={[styles.input, errors.email && styles.errorInput]}
+              placeholder="you@example.com"
+              placeholderTextColor={COLORS.textMuted}
+              style={[styles.input, errors.email && styles.inputError]}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
 
+            <Text style={styles.label}>Password</Text>
             <TextInput
-              placeholder="Password"
-              placeholderTextColor="#666"
-              style={[styles.input, errors.password && styles.errorInput]}
+              placeholder="At least 8 characters"
+              placeholderTextColor={COLORS.textMuted}
+              style={[styles.input, errors.password && styles.inputError]}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
             />
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-            {errors.general && <Text style={styles.errorText}>{errors.general}</Text>}
+            {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
+            {errors.general ? <Text style={styles.bannerError}>{errors.general}</Text> : null}
 
-            <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign Up</Text>}
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSignup}
+              disabled={loading}
+              activeOpacity={0.85}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign up</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.signupText}>Already have an account? Log In</Text>
-            </TouchableOpacity>
+            <View style={styles.footerRow}>
+              <Text style={styles.footerMuted}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}>
+                <Text style={styles.footerLink}>Log in</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -131,78 +176,163 @@ export default function SignupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   gradient: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 40,
   },
-  logoContainer: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  hero: {
     alignItems: 'center',
-    marginBottom: 0,
-    marginTop: -70,
+    marginBottom: 20,
+  },
+  logoRing: {
+    width: LOGO_MAX + 28,
+    height: LOGO_MAX + 28,
+    borderRadius: (LOGO_MAX + 28) / 2,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.15)',
+    shadowColor: '#059669',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   logo: {
-    width: 300,
-    height: 300,
+    width: LOGO_MAX,
+    height: LOGO_MAX,
   },
-  formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
+  tagline: {
+    marginTop: 14,
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primaryPressed,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(15, 23, 42, 0.06)',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.text,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
-  successText: {
-    color: 'green',
-    fontSize: 16,
+  subtitle: {
+    marginTop: 8,
+    marginBottom: 22,
+    fontSize: 15,
+    color: COLORS.textMuted,
     textAlign: 'center',
-    marginBottom: 10,
+    lineHeight: 22,
+  },
+  bannerSuccess: {
+    backgroundColor: '#ecfdf5',
+    color: COLORS.success,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    fontWeight: '600',
+    overflow: 'hidden',
+  },
+  bannerError: {
+    backgroundColor: '#fef2f2',
+    color: COLORS.error,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+    marginLeft: 2,
   },
   input: {
-    height: 50,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginBottom: 10,
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    marginBottom: 6,
     fontSize: 16,
-    backgroundColor: '#f5f5f5',
-    color: '#333',
+    backgroundColor: COLORS.inputBg,
+    color: COLORS.text,
   },
-  errorInput: {
-    borderColor: 'red',
+  inputError: {
+    borderColor: COLORS.error,
+    backgroundColor: '#fff7f7',
   },
-  errorText: {
-    color: 'red',
-    fontSize: 14,
-    marginBottom: 10,
+  fieldError: {
+    color: COLORS.error,
+    marginBottom: 12,
+    marginLeft: 4,
+    fontSize: 13,
   },
   button: {
-    backgroundColor: 'green',
-    paddingVertical: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginTop: 8,
     alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.85,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  signupText: {
-    color: 'green',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 10,
+  footerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 22,
+  },
+  footerMuted: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+  },
+  footerLink: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
 });
