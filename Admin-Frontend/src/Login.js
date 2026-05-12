@@ -7,21 +7,17 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Hardcoded credentials for the four members
-  const validUsers = [
-    { email: 'fa21-bce-087@cuilahore.edu.pk', password: '1234' },
-    { email: 'fa21-bce-083@cuilahore.edu.pk', password: '1234' },
-    { email: 'fa21-bce-085@cuilahore.edu.pk', password: '1234' },
-    { email: 'fa21-bce-016@cuilahore.edu.pk', password: '1234' },
-  ];
+  // Admin panel: only these emails; password is always 1234 (client-side gate; do not expose backend secrets here).
+  const ADMIN_EMAILS = ['zain03mns@edu.pk', 'ahsan14mns@edu.pk'];
+  const ADMIN_PASSWORD = '1234';
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const user = validUsers.find(
-      (user) => user.email === email && user.password === password
-    );
+    const normalized = email.trim().toLowerCase();
+    const allowed = ADMIN_EMAILS.some((a) => a.toLowerCase() === normalized);
+    const ok = allowed && password === ADMIN_PASSWORD;
 
-    if (user) {
+    if (ok) {
       setIsAuthenticated(true);
     } else {
       alert('Invalid email or password');

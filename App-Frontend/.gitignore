@@ -13,3 +13,13 @@ ios/Pods/
 ios/build/
 ios/*.xcworkspace/xcuserdata/
 ios/.xcode.env.local
+
+# Android – local / generated (Metro/Gradle builds; do not commit)
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/*.iml
+android/.cxx/
+android/app/.cxx/
