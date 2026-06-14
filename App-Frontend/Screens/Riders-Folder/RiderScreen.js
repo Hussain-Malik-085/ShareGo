@@ -15,7 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -232,6 +232,35 @@ const RiderScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  const applyDob = (selectedDate) => {
+    setDob(selectedDate);
+    setErrors((e) => {
+      const next = { ...e };
+      delete next.dob;
+      return next;
+    });
+  };
+
+  const openDobPicker = () => {
+    const initialDate = dob || new Date(2000, 0, 1);
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: initialDate,
+        mode: 'date',
+        maximumDate: new Date(),
+        onChange: (event, selectedDate) => {
+          if (event.type === 'set' && selectedDate) {
+            applyDob(selectedDate);
+          }
+        },
+      });
+      return;
+    }
+
+    setShowDatePicker(true);
+  };
 
   const loadSessionEmail = useCallback(async () => {
     try {
@@ -458,7 +487,7 @@ const RiderScreen = () => {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   style={[styles.dateRow, errors.dob && styles.inputError]}
-                  onPress={() => setShowDatePicker(true)}>
+                  onPress={openDobPicker}>
                   <Text style={styles.dateGlyph}>📅</Text>
                   <Text style={[styles.dateText, !dob && styles.datePlaceholder]}>
                     {dob ? dob.toLocaleDateString() : 'Tap to choose'}
@@ -466,20 +495,15 @@ const RiderScreen = () => {
                 </TouchableOpacity>
               </RiderProfileField>
 
-              {showDatePicker ? (
+              {Platform.OS === 'ios' && showDatePicker ? (
                 <DateTimePicker
                   value={dob || new Date(2000, 0, 1)}
                   mode="date"
-                  display="default"
+                  display="spinner"
                   onChange={(event, selectedDate) => {
                     setShowDatePicker(false);
-                    if (selectedDate) {
-                      setDob(selectedDate);
-                      setErrors((e) => {
-                        const next = { ...e };
-                        delete next.dob;
-                        return next;
-                      });
+                    if (event.type === 'set' && selectedDate) {
+                      applyDob(selectedDate);
                     }
                   }}
                   maximumDate={new Date()}

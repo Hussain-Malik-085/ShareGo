@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { supabase } from '../../config/supabaseClient';
+import { formatAuthError } from '../../utils/authErrors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const LOGO_MAX = Math.min(152, SCREEN_W * 0.4);
@@ -59,7 +60,7 @@ export default function SignupScreen({ navigation }) {
       const { error: authError } = await supabase.auth.signUp({ email, password });
 
       if (authError) {
-        const msg = authError.message || '';
+        const msg = formatAuthError(authError);
         if (/already registered|already been registered|User already exists/i.test(msg)) {
           setErrors({ email: 'This email is already registered.' });
         } else {
@@ -91,15 +92,7 @@ export default function SignupScreen({ navigation }) {
 
       setSuccessMessage('Check your email for verification.');
     } catch (err) {
-      const msg = err?.message || String(err);
-      if (msg.includes('Network request failed')) {
-        setErrors({
-          general:
-            'Network error: check internet, SUPABASE_URL / key in .env, then rebuild (npx react-native start --reset-cache).',
-        });
-      } else {
-        setErrors({ general: msg });
-      }
+      setErrors({ general: formatAuthError(err) });
     }
 
     setLoading(false);

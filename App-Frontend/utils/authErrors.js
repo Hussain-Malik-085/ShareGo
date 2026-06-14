@@ -23,5 +23,12 @@ export function formatAuthError(error) {
     );
   }
 
+  if (lower.includes('network request failed') || lower.includes('failed to fetch')) {
+    return (
+      'Cannot reach Supabase. In App-Frontend/.env set your real SUPABASE_URL and SUPABASE_ANON_KEY ' +
+      '(Supabase → Project Settings → API). Then restart Metro with --reset-cache and rebuild the app.'
+    );
+  }
+
   return msg || 'Something went wrong. Try again.';
 }

@@ -57,6 +57,8 @@ const BikeScreen = ({ navigation }) => {
       },
       cnic: {
         cnicNumber: cnic?.cnicNumber,
+        frontImage: cnic?.frontImage,
+        backImage: cnic?.backImage,
       },
       license: {
         licenseNumber: license?.licenseNumber,

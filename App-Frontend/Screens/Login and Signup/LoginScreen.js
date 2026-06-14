@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { supabase } from '../../config/supabaseClient';
+import { formatAuthError } from '../../utils/authErrors';
 import { tryNavigateExistingRider } from '../../utils/sessionRouting';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -67,7 +68,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setLoginError(error.message);
+        setLoginError(formatAuthError(error));
       } else {
         setLoginError('');
         const onboarded = await tryNavigateExistingRider(email, navigation);
@@ -76,7 +77,7 @@ export default function LoginScreen({ navigation }) {
         }
       }
     } catch (err) {
-      setLoginError(err.message);
+      setLoginError(formatAuthError(err));
     } finally {
       setIsLoading(false);
     }
