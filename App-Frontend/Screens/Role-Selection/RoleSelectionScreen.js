@@ -16,6 +16,10 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  getSignedInEmail,
+  tryNavigateExistingRider,
+} from '../../utils/sessionRouting';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = 14;
@@ -36,6 +40,7 @@ const CTA_GRADIENT = ['#34d399', '#059669', '#047857'];
 
 const RoleSelectionScreen = ({ navigation }) => {
   const [selectedRole, setSelectedRole] = useState(null);
+  const [continuing, setContinuing] = useState(false);
   const arrowShift = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -74,6 +79,7 @@ const RoleSelectionScreen = ({ navigation }) => {
       return;
     }
     if (selectedRole === 'Rider') {
+      setContinuing(true);
       try {
         const complete = await AsyncStorage.getItem('riderProfileComplete');
         const id = await AsyncStorage.getItem('riderId');
@@ -81,10 +87,19 @@ const RoleSelectionScreen = ({ navigation }) => {
           navigation.replace('Rider_HomeScreen');
           return;
         }
+        const sessionEmail = await getSignedInEmail();
+        if (sessionEmail) {
+          const restored = await tryNavigateExistingRider(sessionEmail, navigation);
+          if (restored) {
+            return;
+          }
+        }
+        navigation.navigate('Rider');
       } catch (_) {
-        /* ignore */
+        navigation.navigate('Rider');
+      } finally {
+        setContinuing(false);
       }
-      navigation.navigate('Rider');
       return;
     }
     Alert.alert('Choose a role', 'Please select Driver or Rider to continue.');
@@ -137,6 +152,7 @@ const RoleSelectionScreen = ({ navigation }) => {
           <View style={styles.ctaOuter}>
             <TouchableOpacity
               activeOpacity={0.9}
+              disabled={continuing}
               onPress={handleCreateProfile}
               style={styles.ctaInnerTouchable}>
               <LinearGradient
@@ -145,7 +161,7 @@ const RoleSelectionScreen = ({ navigation }) => {
                 end={{ x: 1, y: 0.5 }}
                 style={styles.ctaGradient}>
                 <View style={styles.ctaRow}>
-                  <Text style={styles.ctaText}>Continue</Text>
+                  <Text style={styles.ctaText}>{continuing ? 'Checking…' : 'Continue'}</Text>
                   <Animated.Text
                     style={[styles.ctaArrow, { transform: [{ translateX: arrowShift }] }]}>
                     →

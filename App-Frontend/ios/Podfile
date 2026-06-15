@@ -1,12 +1,21 @@
-# Resolve react_native_pods.rb with node to allow for hoisting
-require Pod::Executable.execute_command('node', ['-p',
-  'require.resolve(
-    "react-native/scripts/react_native_pods.rb",
-    {paths: [process.argv[1]]},
-  )', __dir__]).strip
+def node_require(script)
+  require Pod::Executable.execute_command('node', ['-p',
+    "require.resolve(
+      '#{script}',
+      {paths: [process.argv[1]]},
+    )", __dir__]).strip
+end
+
+node_require('react-native/scripts/react_native_pods.rb')
+node_require('react-native-permissions/scripts/setup.rb')
 
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
+
+setup_permissions([
+  'Camera',
+  'PhotoLibrary',
+])
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
@@ -40,5 +49,27 @@ target 'Share_Go' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # react-native-maps ships Fabric-only sources that fail when New Architecture is off.
+    fabric_maps_patterns = [
+      'RNMapsMapView',
+      'RNMapsMarkerView',
+      'RNMapsGoogleMapView',
+      'RNMapsGooglePolygonView',
+      'PlaceHolderPolygonView',
+      'PlaceHolderGoogleMapView',
+    ]
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'react-native-maps'
+
+      target.source_build_phase.files.to_a.each do |build_file|
+        path = build_file.file_ref&.path.to_s
+        next if path.empty?
+
+        if fabric_maps_patterns.any? { |name| path.include?(name) }
+          target.source_build_phase.files.delete(build_file)
+        end
+      end
+    end
   end
 end

@@ -10,12 +10,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import ImagePicker from 'react-native-image-crop-picker'; // Importing react-native-image-crop-picker
 import DateTimePicker from '@react-native-community/datetimepicker';
-import {uploadImageToCloudinary} from '../../config/cloudinaryConfig';
+import {uploadImageToCloudinary, getImagePreviewUri} from '../../config/cloudinaryConfig';
+import {showImagePickerAlert} from '../../utils/imagePicker';
 import front_cover from '../../assets/Liencefront.png';
 import back_cover from '../../assets/Lienceback.png';
-import {PermissionsAndroid} from 'react-native';
 
 const LicenseScreen = ({route, navigation}) => {
   const {setData, markSectionCompleted} = route.params;
@@ -68,70 +67,14 @@ const LicenseScreen = ({route, navigation}) => {
     }
   };
 
-  // Request camera permission
-  const requestCameraPermission = async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Camera Permission',
-          message: 'This app needs access to your camera to take photos.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (err) {
-      console.warn(err);
-      return false;
-    }
-  };
-
-  const pickOrCaptureImage = async (side) => {
-    const hasPermission = await requestCameraPermission();
-
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera access is required to take photos.');
-      return;
-    }
-
-    Alert.alert('Select an option', 'Choose how to add the image', [
-      {
-        text: 'Take Photo',
-        onPress: () => {
-          ImagePicker.openCamera({
-            mediaType: 'photo',
-          }).then((image) => {
-            if (image && side === 'front') {
-              setFrontImage(image.path);
-            } else if (image && side === 'back') {
-              setBackImage(image.path);
-            }
-          });
-        },
+  const pickOrCaptureImage = side => {
+    showImagePickerAlert({
+      cropping: false,
+      onImageSelected: asset => {
+        if (side === 'front') setFrontImage(asset);
+        else setBackImage(asset);
       },
-      {
-        text: 'Choose from Gallery',
-        onPress: () => {
-          ImagePicker.openPicker({
-            mediaType: 'photo',
-          }).then((image) => {
-            if (image && side === 'front') {
-              setFrontImage(image.path);
-            } else if (image && side === 'back') {
-              setBackImage(image.path);
-            }
-          });
-        },
-      },
-      {text: 'Cancel', style: 'cancel'},
-    ]);
+    });
   };
 
   return (
@@ -202,7 +145,7 @@ const LicenseScreen = ({route, navigation}) => {
             style={styles.imagePreview}
           />
         ) : (
-          <Image source={{uri: frontImage}} style={styles.imagePreview} />
+          <Image source={{uri: getImagePreviewUri(frontImage)}} style={styles.imagePreview} />
         )}
 
         <TouchableOpacity
@@ -218,7 +161,7 @@ const LicenseScreen = ({route, navigation}) => {
             style={styles.imagePreview}
           />
         ) : (
-          <Image source={{uri: backImage}} style={styles.imagePreview} />
+          <Image source={{uri: getImagePreviewUri(backImage)}} style={styles.imagePreview} />
         )}
         <TouchableOpacity
           style={styles.imageButton}

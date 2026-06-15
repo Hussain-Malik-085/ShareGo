@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,9 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import RNPickerSelect from 'react-native-picker-select';
-import {uploadImageToCloudinary} from '../../config/cloudinaryConfig';
-import {PermissionsAndroid} from 'react-native';
+import {uploadImageToCloudinary, getImagePreviewUri} from '../../config/cloudinaryConfig';
+import {showImagePickerAlert} from '../../utils/imagePicker';
 
 const CarVehicleInfoScreen = ({route, navigation}) => {
   const {setData} = route.params;
@@ -160,57 +159,13 @@ const CarVehicleInfoScreen = ({route, navigation}) => {
 
   const sortedCompanyNames = Object.keys(companies).sort();
 
-  useEffect(() => {
-    const checkPermissions = async () => {
-      const hasCameraPermission = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-      );
-      if (!hasCameraPermission) {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: 'Camera Permission',
-            message: 'This app needs access to your camera to take photos.',
-          },
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert(
-            'Permission Denied',
-            'Camera access is required to take photos.',
-          );
-        }
-      }
-    };
-
-    checkPermissions(); // Check permissions when screen is focused
-  }, []); // Empty dependency array to only run once on mount
-
-  const pickOrCaptureImage = async side => {
-    const options = {mediaType: 'photo', cameraType: 'back', quality: 1};
-
-    Alert.alert('Select an option', 'Choose how to add the image', [
-      {
-        text: 'Take Photo',
-        onPress: () => {
-          launchCamera(options, response => {
-            if (response.assets) {
-              setImages(prev => ({...prev, [side]: response.assets[0].uri}));
-            }
-          });
-        },
+  const pickOrCaptureImage = side => {
+    showImagePickerAlert({
+      cropping: false,
+      onImageSelected: asset => {
+        setImages(prev => ({...prev, [side]: asset}));
       },
-      {
-        text: 'Choose from Gallery',
-        onPress: () => {
-          launchImageLibrary(options, response => {
-            if (response.assets) {
-              setImages(prev => ({...prev, [side]: response.assets[0].uri}));
-            }
-          });
-        },
-      },
-      {text: 'Cancel', style: 'cancel'},
-    ]);
+    });
   };
 
   const handleSave = async () => {
@@ -329,7 +284,9 @@ const CarVehicleInfoScreen = ({route, navigation}) => {
               <Text style={styles.imageLabel}>{side.toUpperCase()}</Text>
               <Image
                 source={
-                  images[side] ? {uri: images[side]} : exampleImages[side]
+                  images[side]
+                    ? {uri: getImagePreviewUri(images[side])}
+                    : exampleImages[side]
                 }
                 style={styles.imageStyle}
               />

@@ -64,9 +64,9 @@ const DriverPrivacyPolicyScreen = () => {
   If you have any questions or concerns, reach out to us at{" "}
   <Text
     style={styles.link}
-    onPress={() => Linking.openURL("mailto:aiman087.eng@gmail.com")}
+    onPress={() => Linking.openURL("mailto:zain03mns@edu.pk")}
   >
-    aiman087.eng@gmail.com
+    zain03mns@edu.pk
   </Text>.
 </Text>
       <View style={styles.spacer} />

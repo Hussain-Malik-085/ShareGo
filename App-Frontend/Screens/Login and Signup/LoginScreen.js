@@ -4,7 +4,7 @@
 /* eslint-disable curly */
 /* eslint-disable no-trailing-spaces */
 // screens/LoginScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { supabase } from '../../config/supabaseClient';
 import { formatAuthError } from '../../utils/authErrors';
-import { tryNavigateExistingRider } from '../../utils/sessionRouting';
+import { tryNavigateExistingRider, resolveInitialRoute } from '../../utils/sessionRouting';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const LOGO_MAX = Math.min(152, SCREEN_W * 0.4);
@@ -46,6 +46,27 @@ export default function LoginScreen({ navigation }) {
   const [passwordError, setPasswordError] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const route = await resolveInitialRoute();
+        if (cancelled) return;
+        if (route !== 'Login') {
+          navigation.replace(route);
+        }
+      } catch (_) {
+        /* show login form */
+      } finally {
+        if (!cancelled) setCheckingSession(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation]);
 
   const handleLogin = async () => {
     setLoginError('');
@@ -82,6 +103,16 @@ export default function LoginScreen({ navigation }) {
       setIsLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <LinearGradient colors={COLORS.gradient} style={styles.gradient}>
+        <View style={[styles.flex, styles.sessionLoader]}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={COLORS.gradient} style={styles.gradient}>
@@ -174,6 +205,10 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  sessionLoader: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   gradient: {
     flex: 1,
   },

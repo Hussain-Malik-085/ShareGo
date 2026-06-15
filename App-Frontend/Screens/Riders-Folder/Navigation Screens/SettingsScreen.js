@@ -8,7 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  Platform,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useNotifications from '../Navigation Screens/Notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {BASE_URL} from '../../../config/config';
@@ -97,23 +101,70 @@ const SettingsScreen = ({navigation}) => {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.option} activeOpacity={0.7}>
-        <Text style={styles.optionText}>🔔 Notifications</Text>
-        <Switch
-          value={isEnabled}
-          onValueChange={toggleNotifications}
-          style={styles.switch}
-          trackColor={{false: '#d3d3d3', true: '#4caf50'}}
-          thumbColor={isEnabled ? '#ffffff' : '#b0b0b0'}
-        />
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}>
+        <TouchableOpacity style={styles.option} activeOpacity={0.7}>
+          <View style={styles.optionLeft}>
+            <View style={styles.optionIconWrap}>
+              <Icon name="bell-outline" size={20} color="#059669" />
+            </View>
+            <Text style={styles.optionText}>Notifications</Text>
+          </View>
+          <Switch
+            value={isEnabled}
+            onValueChange={toggleNotifications}
+            trackColor={{false: '#d1d5db', true: '#6ee7b7'}}
+            thumbColor={isEnabled ? '#059669' : '#f4f4f5'}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() => setModalVisible(true)}>
+          <View style={styles.optionLeft}>
+            <View style={styles.optionIconWrap}>
+              <Icon name="shield-lock-outline" size={20} color="#059669" />
+            </View>
+            <Text style={styles.optionText}>Privacy Policy</Text>
+          </View>
+          <Icon name="chevron-right" size={22} color="#cbd5e1" />
+        </TouchableOpacity>
+
+      <TouchableOpacity style={styles.option} onPress={handleDeleteAccount}>
+        <View style={styles.optionLeft}>
+          <View style={[styles.optionIconWrap, styles.dangerIconWrap]}>
+            <Icon name="delete-outline" size={20} color="#dc2626" />
+          </View>
+          <Text style={[styles.optionText, styles.dangerText]}>Delete Account</Text>
+        </View>
+        <Icon name="chevron-right" size={22} color="#fecaca" />
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.option}
-        onPress={() => setModalVisible(true)}>
-        <Text style={styles.optionText}>🔒 Privacy Policy</Text>
+        style={[styles.option, styles.logout]}
+        onPress={async () => {
+          setLoading(true);
+          await AsyncStorage.multiRemove([
+            'riderId',
+            'riderProfileComplete',
+            'userRole',
+          ]);
+          setTimeout(() => {
+            setLoading(false);
+            navigation.replace('Login');
+          }, 800);
+        }}>
+        <View style={styles.optionLeft}>
+          <View style={[styles.optionIconWrap, styles.dangerIconWrap]}>
+            <Icon name="logout" size={20} color="#dc2626" />
+          </View>
+          <Text style={[styles.optionText, styles.dangerText]}>Log Out</Text>
+        </View>
+        <Icon name="chevron-right" size={22} color="#fecaca" />
       </TouchableOpacity>
+      </ScrollView>
 
       <Modal
         animationType="slide"
@@ -144,25 +195,6 @@ const SettingsScreen = ({navigation}) => {
         </View>
       </Modal>
 
-      <TouchableOpacity style={styles.option} onPress={handleDeleteAccount}>
-        <Text style={[styles.optionText, {color: 'red'}]}>
-          🗑️ Delete Account
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.option, styles.logout]}
-        onPress={async () => {
-          setLoading(true);
-          await AsyncStorage.removeItem('riderId'); // Optional: Clear session data
-          setTimeout(() => {
-            setLoading(false);
-            navigation.replace('Login');
-          }, 2000); // 2 seconds delay
-        }}>
-        <Text style={[styles.optionText, {color: 'red'}]}>🚪 Log Out</Text>
-      </TouchableOpacity>
-
       {loading && (
         <Modal animationType="fade" transparent visible={loading}>
           <View style={styles.loadingContainer}>
@@ -173,38 +205,69 @@ const SettingsScreen = ({navigation}) => {
           </View>
         </Modal>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#f8fafc',
+  },
+  container: {
+    flexGrow: 1,
+    padding: 16,
+    paddingBottom: 28,
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 15,
+    padding: 16,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {elevation: 2},
+    }),
+  },
+  optionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  optionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#ecfdf5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  dangerIconWrap: {
+    backgroundColor: '#fef2f2',
   },
   optionText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '600',
+    color: '#0f172a',
+    flexShrink: 1,
   },
-  switch: {
-    transform: [{scaleX: 1.2}, {scaleY: 1.2}],
-    marginLeft: 10,
+  dangerText: {
+    color: '#dc2626',
   },
   modalContainer: {
     flex: 1,
