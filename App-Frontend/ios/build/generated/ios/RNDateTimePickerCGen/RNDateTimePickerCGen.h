@@ -55,6 +55,7 @@ namespace JS {
       NSString *testID() const;
       std::optional<double> timeZoneName() const;
       std::optional<double> timeZoneOffsetInMinutes() const;
+      std::optional<bool> startOnYearSelection() const;
 
       SpecOpenParams(NSDictionary *const v) : _v(v) {}
     private:
@@ -122,6 +123,7 @@ namespace JS {
       std::optional<double> timeZoneName() const;
       std::optional<double> timeZoneOffsetInMinutes() const;
       std::optional<double> firstDayOfWeek() const;
+      std::optional<bool> startOnYearSelection() const;
 
       SpecOpenParams(NSDictionary *const v) : _v(v) {}
     private:
@@ -325,6 +327,11 @@ inline std::optional<double> JS::NativeModuleDatePicker::SpecOpenParams::timeZon
   id const p = _v[@"timeZoneOffsetInMinutes"];
   return RCTBridgingToOptionalDouble(p);
 }
+inline std::optional<bool> JS::NativeModuleDatePicker::SpecOpenParams::startOnYearSelection() const
+{
+  id const p = _v[@"startOnYearSelection"];
+  return RCTBridgingToOptionalBool(p);
+}
 inline NSString *JS::NativeModuleMaterialDatePicker::SpecOpenParamsDialogButtons::string() const
 {
   id const p = _v[@"string"];
@@ -379,6 +386,11 @@ inline std::optional<double> JS::NativeModuleMaterialDatePicker::SpecOpenParams:
 {
   id const p = _v[@"firstDayOfWeek"];
   return RCTBridgingToOptionalDouble(p);
+}
+inline std::optional<bool> JS::NativeModuleMaterialDatePicker::SpecOpenParams::startOnYearSelection() const
+{
+  id const p = _v[@"startOnYearSelection"];
+  return RCTBridgingToOptionalBool(p);
 }
 inline NSString *JS::NativeModuleMaterialTimePicker::SpecOpenParamsDialogButtons::string() const
 {

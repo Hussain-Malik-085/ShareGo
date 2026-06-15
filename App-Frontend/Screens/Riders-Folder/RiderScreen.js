@@ -21,6 +21,10 @@ import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BASE_URL } from '../../config/config';
 import { supabase } from '../../config/supabaseClient';
+import {
+  getSignedInEmail,
+  tryNavigateExistingRider,
+} from '../../utils/sessionRouting';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -293,6 +297,11 @@ const RiderScreen = () => {
         const id = await AsyncStorage.getItem('riderId');
         if (!cancelled && complete === 'true' && id) {
           navigation.replace('Rider_HomeScreen');
+          return;
+        }
+        const sessionEmail = await getSignedInEmail();
+        if (!cancelled && sessionEmail) {
+          await tryNavigateExistingRider(sessionEmail, navigation);
         }
       } catch (_) {
         /* ignore */
@@ -376,10 +385,13 @@ const RiderScreen = () => {
         setErrors({});
         await loadSessionEmail();
       } else {
-        const msg =
+        const rawMsg =
           result.message ||
           (typeof result === 'string' ? result : null) ||
-          `Save failed (${response.status}). Turn on App-Backend & MongoDB.`;
+          `Save failed (${response.status}).`;
+        const msg = rawMsg.includes('ECONNREFUSED') && rawMsg.includes('27017')
+          ? 'Database is not running. Start MongoDB on your Mac, then restart App-Backend:\n\nmongod --dbpath ~/data/db\n\nor: brew services start mongodb-community@7.0'
+          : rawMsg;
         Alert.alert('Could not save', msg);
       }
     } catch (error) {

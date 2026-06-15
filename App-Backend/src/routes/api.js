@@ -25,6 +25,46 @@ const fuelHandler = (req, res) => {
 
 router.get('/Fuel-price', fuelHandler);
 
+/** Proxy image upload to Cloudinary (base64 JSON — reliable for React Native). */
+router.post('/upload/image', async (req, res) => {
+  try {
+    const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+    const preset = process.env.CLOUDINARY_UPLOAD_PRESET?.trim();
+    const {base64, mime = 'image/jpeg'} = req.body || {};
+
+    if (!cloud || !preset) {
+      return res.status(503).json({
+        message: 'Cloudinary not configured on backend (.env CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET)',
+      });
+    }
+    if (!base64) {
+      return res.status(400).json({message: 'base64 is required'});
+    }
+
+    const form = new FormData();
+    form.append('file', `data:${mime};base64,${base64}`);
+    form.append('upload_preset', preset);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloud}/image/upload`,
+      {method: 'POST', body: form},
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json({
+        message: data?.error?.message || 'Cloudinary upload failed',
+      });
+    }
+    res.json({
+      secure_url: data.secure_url,
+      url: data.url,
+      public_id: data.public_id,
+    });
+  } catch (e) {
+    res.status(500).json({message: e.message || 'Upload failed'});
+  }
+});
+
 /** Drivers */
 router.post('/drivers', async (req, res) => {
   try {

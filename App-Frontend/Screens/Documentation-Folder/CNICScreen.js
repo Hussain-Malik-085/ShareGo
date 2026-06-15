@@ -9,10 +9,9 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  PermissionsAndroid,
 } from 'react-native';
-import ImagePicker from 'react-native-image-crop-picker';
-import {uploadImageToCloudinary} from '../../config/cloudinaryConfig';
+import {uploadImageToCloudinary, getImagePreviewUri} from '../../config/cloudinaryConfig';
+import {showImagePickerAlert} from '../../utils/imagePicker';
 import frontCover from '../../assets/frontside.png';
 
 const CNICScreen = ({route, navigation}) => {
@@ -23,53 +22,14 @@ const CNICScreen = ({route, navigation}) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const requestCameraPermission = async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Camera Permission',
-          message: 'This app needs access to your camera to take photos.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch (err) {
-      console.warn(err);
-      return false;
-    }
-  };
-
-  const pickOrCaptureImage = async side => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera access is required to take photos.');
-      return;
-    }
-
-    Alert.alert('Select an option', 'Choose how to add the image', [
-      {
-        text: 'Take Photo',
-        onPress: () => {
-          ImagePicker.openCamera({mediaType: 'photo'}).then(image => {
-            if (side === 'front') setFrontImage(image.path);
-            else setBackImage(image.path);
-          });
-        },
+  const pickOrCaptureImage = side => {
+    showImagePickerAlert({
+      cropping: false,
+      onImageSelected: asset => {
+        if (side === 'front') setFrontImage(asset);
+        else setBackImage(asset);
       },
-      {
-        text: 'Choose from Gallery',
-        onPress: () => {
-          ImagePicker.openPicker({mediaType: 'photo'}).then(image => {
-            if (side === 'front') setFrontImage(image.path);
-            else setBackImage(image.path);
-          });
-        },
-      },
-      {text: 'Cancel', style: 'cancel'},
-    ]);
+    });
   };
 
   const handleSave = async () => {
@@ -115,7 +75,7 @@ const CNICScreen = ({route, navigation}) => {
         {!frontImage ? (
           <Image source={frontCover} style={styles.imagePreview} />
         ) : (
-          <Image source={{uri: frontImage}} style={styles.imagePreview} />
+          <Image source={{uri: getImagePreviewUri(frontImage)}} style={styles.imagePreview} />
         )}
         <TouchableOpacity
           style={styles.imageButton}
@@ -126,7 +86,7 @@ const CNICScreen = ({route, navigation}) => {
         {!backImage ? (
           <Image source={frontCover} style={styles.imagePreview} />
         ) : (
-          <Image source={{uri: backImage}} style={styles.imagePreview} />
+          <Image source={{uri: getImagePreviewUri(backImage)}} style={styles.imagePreview} />
         )}
         <TouchableOpacity
           style={styles.imageButton}

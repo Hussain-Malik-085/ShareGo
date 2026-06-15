@@ -75,7 +75,7 @@ const Driver_HomeScreen = () => {
               <Text>Your verification has been rejected.</Text>
               <Text style={styles.contactText}>
                 Kindly contact us at{' '}
-                <Text style={styles.emailText}>shaegoapp.f@gmail.com</Text>
+                <Text style={styles.emailText}>zain03mns@edu.pk</Text>
               </Text>
             </>
           ),

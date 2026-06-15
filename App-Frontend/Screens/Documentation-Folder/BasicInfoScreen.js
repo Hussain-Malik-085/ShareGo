@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -12,335 +12,262 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Feather from 'react-native-vector-icons/Feather';
-import { uploadImageToCloudinary } from '../../config/cloudinaryConfig';
-import RNPickerSelect from 'react-native-picker-select'; // Import react-native-picker-select
-import ImagePicker from 'react-native-image-crop-picker';
+import {uploadImageToCloudinary, getImagePreviewUri} from '../../config/cloudinaryConfig';
+import {showImagePickerAlert} from '../../utils/imagePicker';
 import selfie from '../../assets/selfiepicture.png';
 
+const PALETTE = {
+  primary: '#059669',
+  primaryDark: '#047857',
+  text: '#0f172a',
+  muted: '#64748b',
+  border: '#e2e8f0',
+  bg: '#f8fafc',
+};
 
-const BasicInfoScreen = ({ route, navigation }) => {
-  const { setData } = route.params;
+const formatDate = date =>
+  date
+    ? date.toLocaleDateString(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '';
+
+const toDisplayUri = getImagePreviewUri;
+
+const BasicInfoScreen = ({route, navigation}) => {
+  const {setData} = route.params;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [gender, setGender] = useState('male');
-  const [genderVisible, setGenderVisible] = useState(false); // Controls the visibility of the dropdown
   const [address, setAddress] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState(null);
+  const [pickerDate, setPickerDate] = useState(new Date(2000, 0, 1));
   const [imageUri, setImageUri] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false); // Add loading state
-  const [phoneNumberError, setPhoneNumberError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleDateChange = (event, selectedDate) => {
+  const openDatePicker = () => {
+    setPickerDate(dateOfBirth || new Date(2000, 0, 1));
+    setShowDatePicker(true);
+  };
+
+  const confirmDate = () => {
+    setDateOfBirth(pickerDate);
     setShowDatePicker(false);
-    if (selectedDate) setDateOfBirth(selectedDate);
+    setErrors(prev => ({...prev, dateOfBirth: undefined}));
+  };
+
+  const handleAndroidDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setDateOfBirth(selectedDate);
+      setErrors(prev => ({...prev, dateOfBirth: undefined}));
+    }
+  };
+
+  const pickGender = () => {
+    Alert.alert('Gender', 'Select your gender', [
+      {text: 'Male', onPress: () => setGender('male')},
+      {text: 'Female', onPress: () => setGender('female')},
+      {text: 'Other', onPress: () => setGender('other')},
+      {text: 'Cancel', style: 'cancel'},
+    ]);
   };
 
   const validateFields = () => {
     const newErrors = {};
-    if (!firstName) newErrors.firstName = 'First name is required';
-    if (!lastName) newErrors.lastName = 'Last name is required';
-    if (!email || !email.includes('@'))
+    if (!firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!email.trim() || !email.includes('@')) {
       newErrors.email = 'Valid email is required';
+    }
     if (phoneNumber.length !== 11 || !/^\d{11}$/.test(phoneNumber)) {
       newErrors.phoneNumber = 'Phone number must be 11 digits';
     }
     if (!gender) newErrors.gender = 'Gender is required';
-    if (!address) newErrors.address = 'Address is required';
+    if (!address.trim()) newErrors.address = 'Address is required';
     if (!dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
-    if (!imageUri) newErrors.imageUri = 'Image is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
-    if (validateFields()) {
-      setIsLoading(true); // Start loading
+    if (!validateFields()) return;
 
-      try {
-        const uploadedImageUrl = imageUri
-          ? await uploadImageToCloudinary(imageUri)
-          : null;
-
-        if (uploadedImageUrl) {
-          const basicInfo = {
-            firstName,
-            lastName,
-            email,
-            phoneNumber,
-            gender,
-            address,
-            dateOfBirth: dateOfBirth?.toLocaleDateString(),
-            imageUri: uploadedImageUrl,
-          };
-
-          setData('basicInfo', basicInfo);
-          navigation.goBack();
-        } else {
-          Alert.alert('Error', 'Failed to upload image. Please try again.');
+    setIsLoading(true);
+    try {
+      let uploadedImageUrl = null;
+      if (imageUri) {
+        uploadedImageUrl = await uploadImageToCloudinary(imageUri);
+        if (!uploadedImageUrl) {
+          Alert.alert('Upload failed', 'Could not upload photo to Cloudinary.');
+          return;
         }
-      } catch (error) {
-        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-      } finally {
-        setIsLoading(false); // End loading
       }
+
+      setData('basicInfo', {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phoneNumber,
+        gender,
+        address: address.trim(),
+        dateOfBirth: formatDate(dateOfBirth),
+        imageUri: uploadedImageUrl,
+      });
+      navigation.goBack();
+    } catch {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const pickOrCaptureImage = () => {
-    Alert.alert('Select an option', 'Choose how you want to add the image', [
-      {
-        text: 'Take Photo',
-        onPress: () =>
-          ImagePicker.openCamera({
-            width: 300,
-            height: 300,
-            cropping: true,
-          })
-            .then(image => setImageUri(image.path))
-            .catch(error => console.log('Camera error:', error)),
+    showImagePickerAlert({
+      onImageSelected: asset => {
+        setImageUri(asset);
+        setErrors(prev => ({...prev, imageUri: undefined}));
       },
-      {
-        text: 'Choose from Gallery',
-        onPress: () =>
-          ImagePicker.openPicker({
-            width: 300,
-            height: 300,
-            cropping: true,
-          })
-            .then(image => setImageUri(image.path))
-            .catch(error => console.log('Gallery error:', error)),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+      cropping: Platform.OS === 'ios',
+      width: 800,
+      height: 800,
+    });
   };
+
+  const genderLabel =
+    gender === 'male' ? 'Male' : gender === 'female' ? 'Female' : 'Other';
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+      <ScrollView
+        contentContainerStyle={styles.scrollViewContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Feather name="user" size={24} color="#4CAF50" />
+          <Feather name="user" size={22} color={PALETTE.primary} />
           <Text style={styles.title}>Basic Information</Text>
         </View>
 
         <View style={styles.imageContainer}>
-          <Image
-            source={imageUri ? { uri: imageUri } : selfie} // Conditionally display the selected image or placeholder
-            style={styles.imagePreview}
-          />
+          <View style={styles.imageFrame}>
+            <Image
+              source={
+                imageUri ? {uri: toDisplayUri(imageUri)} : selfie
+              }
+              style={styles.imagePreview}
+              resizeMode="cover"
+            />
+          </View>
           <TouchableOpacity
             style={styles.imageButton}
-            onPress={pickOrCaptureImage}>
-            <Text style={styles.imageButtonText}>Upload Picture</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Feather
-            name="user"
-            size={16}
-            color="#999"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="First Name"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
-        </View>
-        {errors.firstName && (
-          <Text style={styles.errorText}>{errors.firstName}</Text>
-        )}
-        <View style={styles.inputGroup}>
-          <Feather
-            name="user"
-            size={16}
-            color="#999"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Last Name"
-            value={lastName}
-            onChangeText={setLastName}
-          />
-        </View>
-        {errors.lastName && (
-          <Text style={styles.errorText}>{errors.lastName}</Text>
-        )}
-
-        <View style={styles.inputGroup}>
-          <MaterialCommunityIcons
-            name="gender-male"
-            size={16}
-            color="#999"
-            style={styles.inputIcon}
-          />
-          <TouchableOpacity
-            onPress={() => setGenderVisible(true)} // Show the dropdown when clicked
-            style={[
-              styles.input,
-              {flexDirection: 'row', alignItems: 'center'},
-            ]}>
-            <Text style={styles.inputText}>
-              {gender === 'male'
-                ? 'Male'
-                : gender === 'female'
-                ? 'Female'
-                : 'Other'}
+            onPress={pickOrCaptureImage}
+            activeOpacity={0.85}>
+            <MaterialCommunityIcons name="camera" size={18} color="#fff" />
+            <Text style={styles.imageButtonText}>
+              {imageUri ? 'Change photo' : 'Upload picture (optional)'}
             </Text>
-            <MaterialCommunityIcons
-              name="chevron-down"
-              size={20}
-              color="#999"
-            />
           </TouchableOpacity>
-
-          {/* Show the dropdown within the field when clicked */}
-          {genderVisible && (
-            <RNPickerSelect
-              onValueChange={value => {
-                setGender(value);
-                setGenderVisible(false); // Close the dropdown after selection
-              }}
-              value={gender}
-              items={[
-                {label: 'Male', value: 'male'},
-                {label: 'Female', value: 'female'},
-                {label: 'Other', value: 'other'},
-              ]}
-              style={{
-                inputIOS: {
-                  height: 40,
-                  borderColor: '#ccc',
-                  borderWidth: 1,
-                  borderRadius: 5,
-                  paddingHorizontal: 10,
-                  marginBottom: 10,
-                  fontSize: 16,
-                  color: '#000',
-                },
-                inputAndroid: {
-                  height: 40,
-                  borderColor: '#ccc',
-                  borderWidth: 1,
-                  borderRadius: 5,
-                  paddingHorizontal: 10,
-                  marginBottom: 10,
-                  fontSize: 16,
-                  color: '#000',
-                },
-              }}
-            />
-          )}
         </View>
 
-        {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+        <Field
+          icon="user"
+          placeholder="First Name"
+          value={firstName}
+          onChangeText={setFirstName}
+          error={errors.firstName}
+        />
+        <Field
+          icon="user"
+          placeholder="Last Name"
+          value={lastName}
+          onChangeText={setLastName}
+          error={errors.lastName}
+        />
 
-        <View style={styles.inputGroup}>
-          <Feather
-            name="phone"
-            size={16}
-            color="#999"
+        <Pressable style={styles.inputGroup} onPress={pickGender}>
+          <MaterialCommunityIcons
+            name="gender-male-female"
+            size={18}
+            color={PALETTE.muted}
             style={styles.inputIcon}
           />
-          <TextInput
-            style={[styles.input, phoneNumberError ? styles.errorInput : null]}
-            placeholder="Phone Number"
-            value={phoneNumber}
-            onChangeText={text => {
-              setPhoneNumber(text);
-              setPhoneNumberError(text.length < 11 && text.length > 0);
-            }}
-            keyboardType="phone-pad"
-            maxLength={11}
+          <Text style={styles.fieldValue}>{genderLabel}</Text>
+          <MaterialCommunityIcons
+            name="chevron-down"
+            size={20}
+            color={PALETTE.muted}
           />
-        </View>
-        {errors.phoneNumber && (
-          <Text style={styles.errorText}>{errors.phoneNumber}</Text>
-        )}
-        <View style={styles.inputGroup}>
+        </Pressable>
+        {errors.gender ? (
+          <Text style={styles.errorText}>{errors.gender}</Text>
+        ) : null}
+
+        <Field
+          icon="phone"
+          placeholder="Phone Number"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+          keyboardType="phone-pad"
+          maxLength={11}
+          error={errors.phoneNumber}
+        />
+
+        <Pressable style={styles.inputGroup} onPress={openDatePicker}>
           <Feather
             name="calendar"
-            size={16}
-            color="#999"
+            size={18}
+            color={PALETTE.muted}
             style={styles.inputIcon}
           />
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateButton}>
-            <Text style={styles.dateButtonText}>
-              {dateOfBirth
-                ? dateOfBirth.toLocaleDateString()
-                : 'Select Date of Birth'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        {errors.dateOfBirth && (
+          <Text
+            style={[
+              styles.fieldValue,
+              !dateOfBirth && styles.placeholderText,
+            ]}>
+            {dateOfBirth ? formatDate(dateOfBirth) : 'Select date of birth'}
+          </Text>
+        </Pressable>
+        {errors.dateOfBirth ? (
           <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
-        )}
-        {showDatePicker && (
-          <Modal visible={showDatePicker} transparent>
-            <View style={styles.datePickerContainer}>
-              <DateTimePicker
-                value={dateOfBirth || new Date()}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-              />
-            </View>
-          </Modal>
-        )}
-        <View style={styles.inputGroup}>
-          <Feather
-            name="mail"
-            size={16}
-            color="#999"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-        </View>
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        <View style={styles.inputGroup}>
-          <Feather
-            name="map-pin"
-            size={16}
-            color="#999"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Home Address"
-            value={address}
-            onChangeText={setAddress}
-          />
-        </View>
-        {errors.address && (
-          <Text style={styles.errorText}>{errors.address}</Text>
-        )}
+        ) : null}
+
+        <Field
+          icon="mail"
+          placeholder="Email Address"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          error={errors.email}
+        />
+        <Field
+          icon="map-pin"
+          placeholder="Home Address"
+          value={address}
+          onChangeText={setAddress}
+          error={errors.address}
+        />
+
         <TouchableOpacity
           style={[styles.saveButton, isLoading && styles.disabledButton]}
-          onPress={isLoading ? null : handleSave}
-          disabled={isLoading}>
+          onPress={handleSave}
+          disabled={isLoading}
+          activeOpacity={0.9}>
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
@@ -348,34 +275,99 @@ const BasicInfoScreen = ({ route, navigation }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setShowDatePicker(false)}
+          />
+          <View style={styles.iosPickerSheet}>
+            <View style={styles.pickerToolbar}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.toolbarBtn}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.toolbarTitle}>Date of birth</Text>
+              <TouchableOpacity onPress={confirmDate}>
+                <Text style={[styles.toolbarBtn, styles.toolbarDone]}>
+                  Done
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="spinner"
+              onChange={(_, date) => date && setPickerDate(date)}
+              maximumDate={new Date()}
+              themeVariant="light"
+              style={styles.iosPicker}
+            />
+          </View>
+        </Modal>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={dateOfBirth || new Date(2000, 0, 1)}
+            mode="date"
+            display="default"
+            onChange={handleAndroidDateChange}
+            maximumDate={new Date()}
+          />
+        )
+      )}
     </KeyboardAvoidingView>
   );
 };
 
+function Field({
+  icon,
+  placeholder,
+  value,
+  onChangeText,
+  keyboardType,
+  maxLength,
+  autoCapitalize,
+  error,
+}) {
+  return (
+    <>
+      <View style={styles.inputGroup}>
+        <Feather
+          name={icon}
+          size={18}
+          color={PALETTE.muted}
+          style={styles.inputIcon}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor="#94a3b8"
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
+          autoCapitalize={autoCapitalize ?? 'words'}
+        />
+      </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
-  inputIOS: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  inputAndroid: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: PALETTE.bg,
   },
   scrollViewContent: {
     flexGrow: 1,
     padding: 20,
+    paddingBottom: 32,
   },
   header: {
     flexDirection: 'row',
@@ -383,97 +375,127 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     marginLeft: 10,
-    color: '#4CAF50',
+    color: PALETTE.primaryDark,
   },
   imageContainer: {
     alignItems: 'center',
     marginBottom: 20,
   },
+  imageFrame: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#d1fae5',
+    marginBottom: 12,
+    backgroundColor: '#fff',
+  },
   imagePreview: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 10,
+    width: '100%',
+    height: '100%',
   },
   imageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#4CAF50',
-    borderRadius: 5,
+    paddingHorizontal: 18,
+    backgroundColor: PALETTE.primary,
+    borderRadius: 24,
   },
   imageButtonText: {
     color: '#fff',
-    fontSize: 16,
-  },
-  picker: {
-    flex: 1,
-    height: 50,
+    fontSize: 15,
+    fontWeight: '600',
   },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 5,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     marginBottom: 10,
-    borderColor: '#ddd',
+    borderColor: PALETTE.border,
     borderWidth: 1,
-    height: 50,
+    minHeight: 52,
   },
   input: {
     flex: 1,
-    height: '100%',
     fontSize: 16,
+    color: PALETTE.text,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
-  dateButton: {
+  fieldValue: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  dateButtonText: {
     fontSize: 16,
-    color: '#555',
+    color: PALETTE.text,
+  },
+  placeholderText: {
+    color: '#94a3b8',
   },
   inputIcon: {
     marginRight: 10,
   },
   errorText: {
-    color: '#ff0000',
+    color: '#dc2626',
     fontSize: 12,
-    marginBottom: 10,
+    marginBottom: 8,
+    marginTop: -4,
   },
   saveButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 15,
-    borderRadius: 5,
+    backgroundColor: PALETTE.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  datePickerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  saveButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 15,
-    borderRadius: 5,
-    alignItems: 'center',
+    marginTop: 8,
   },
   disabledButton: {
-    backgroundColor: '#A5D6A7',
+    opacity: 0.7,
   },
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '700',
   },
-  errorInput: {
-    borderColor: 'red',
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  iosPickerSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 0,
+  },
+  pickerToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: PALETTE.border,
+  },
+  toolbarTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PALETTE.text,
+  },
+  toolbarBtn: {
+    fontSize: 16,
+    color: PALETTE.muted,
+    padding: 4,
+  },
+  toolbarDone: {
+    color: PALETTE.primary,
+    fontWeight: '700',
+  },
+  iosPicker: {
+    height: 220,
   },
 });
 
